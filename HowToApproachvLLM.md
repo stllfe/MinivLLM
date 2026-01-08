@@ -31,15 +31,14 @@ Start with activation functions (e.g., SiLU, GELU).
 	```
 
 **Benchmark Results:**
-- Small tensors (400 x 800): kernel launch overhead dominates
-	- with torch.compile: 0.2044 ms
-	- without torch.compile: 0.0823 ms (faster without!)
-- Medium tensors (4000 x 8000):
-	- with torch.compile: 0.4494 ms
-	- without torch.compile: 0.5290 ms
-- Large tensors (8 x 4000 x 8000):
-	- with torch.compile: 2.3865 ms
-	- without torch.compile: 3.7650 ms
+| tensor shape         | torch.compile | time (ms) |
+| ---------------      | ------------- | --------- |
+| (400, 800)           | on            |  0.2044   |
+| (400, 800)           | off           |  0.0823   |
+| (4000, 8000)         | on            |  0.4494   |
+| (4000, 8000)         | off           |  0.5290   |
+| (8, 4000, 8000)      | on            |  2.3865   |
+| (8, 4000, 8000)      | off           |  3.7650   |
 
 **Takeaway:** torch.compile helps for larger computation, but adds overhead for small ops.
 
@@ -53,6 +52,41 @@ Implement RMS normalization for stable training.
 - Normalizes activations without mean centering (only uses RMS)
 - More efficient than LayerNorm for large models
 - Critical for training stability
+- Benchmark with this pattern:
+	```python
+    for _ in range(10): # Warm-up iterations
+        _ = layer(x)
+    
+    # Without residuals
+    times = [] 
+    for _ in range(100): # Timing iterations
+        torch.cuda.synchronize()
+        start_time = time.time()
+        _ = layer(x)
+        torch.cuda.synchronize()
+        end_time = time.time()
+        times.append(end_time - start_time)
+    avg_time = sum(times) / len(times)
+    print(f"[Without residuals] Average inference time over 100 runs: {avg_time * 1000:.4f} ms")
+	```
+
+**Benchmark Results:**
+| tensor shape    | torch.compile | residuals | time (ms) |
+| --------------- | ------------- | --------- | --------: |
+| (400, 800)      | off           | off       |  0.1630   |
+| (400, 800)      | off           | on        |  0.1703   |
+| (400, 800)      | on            | off       |  0.2024   |
+| (400, 800)      | on            | on        |  0.3470   |
+| (4000, 8000)    | off           | off       |  1.3725   |
+| (4000, 8000)    | off           | on        |  1.9269   |
+| (4000, 8000)    | on            | off       |  0.6029   |
+| (4000, 8000)    | on            | on        |  1.1786   |
+| (8, 4000, 8000) | off           | off       | 10.4689   |
+| (8, 4000, 8000) | off           | on        | 15.3257   |
+| (8, 4000, 8000) | on            | off       |  3.6483   |
+| (8, 4000, 8000) | on            | on        |  8.1566   |
+
+**Takeaway:** Similar to activation function benchmarking, torch.compile helps for larger computation, but adds overhead for small ops.
 
 ---
 
