@@ -144,8 +144,8 @@ class MergedColumnParallelLinear(ColumnParallelLinear):
         param_data = param_data.narrow(0, offset, shard_size)
         # shard the original full weight
         loaded_weights_start_index = self.tp_rank * shard_size
-        shared_weights = loaded_weights.narrow(0, loaded_weights_start_index, shard_size)
-        param_data.copy_(shared_weights)
+        shard_weights = loaded_weights.narrow(0, loaded_weights_start_index, shard_size)
+        param_data.copy_(shard_weights)
 
 
 class QKVColumnParallelLinear(ColumnParallelLinear):
@@ -190,9 +190,9 @@ class QKVColumnParallelLinear(ColumnParallelLinear):
         param_data = param_data.narrow(0, offset, shard_size)
         # shard the original full weight
         loaded_weights_start_index = self.tp_rank * shard_size
-        shared_weights = loaded_weights.narrow(0, loaded_weights_start_index, shard_size)
+        shard_weights = loaded_weights.narrow(0, loaded_weights_start_index, shard_size)
 
-        param_data.copy_(shared_weights)
+        param_data.copy_(shard_weights)
 
 
 class RowParallelLinear(LinearBase):
